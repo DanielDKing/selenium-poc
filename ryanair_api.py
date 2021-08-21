@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
 import numpy as np
-
+import copy
 
 class RyanairAPI:
     def __init__(self, site_url="https://www.ryanair.com/gb/en/cheap-flights", departure_city="Tel Aviv"):
@@ -14,6 +14,8 @@ class RyanairAPI:
         self.temp_driver = ""
         self.dest_temp_driver = ""
         self.months_temp_driver = ""
+        self.months_url = ""
+        self.dests_url = ""
         self.curr_month = ""
         self.curr_dest_city = ""
         self.curr_dest_country = ""
@@ -30,26 +32,36 @@ class RyanairAPI:
         # prices_table = self.get_month_prices(month_table)
         # month_list = self.convert_prices_tables_to_list(prices_table)
         # print(month_list)
-        for dest in self.get_all_dests():
-            self.driver = self.dest_temp_driver
-            self.curr_dest_city = dest.text.split()[0]
-            self.curr_dest_country = dest.text.split()[1]
-            dest.click()
+        all_destinations = self.get_all_dests()
+        city_dests = [dest.text.split()[0] for dest in all_destinations]
+        for city in city_dests:
+            self.driver.get(self.dests_url)  #########################################
+            # time.sleep(5)
+            # self.driver = self.dest_temp_driver
+            # self.driver = copy.deepcopy(self.dest_temp_driver)
+            for dest in self.get_all_dests():
+                if city == dest.text.split()[0]:
+                    self.curr_dest_city = dest.text.split()[0]  # ???????????????????????
+                    self.curr_dest_country = dest.text.split()[1]
+                    dest.click()
 
-            _ = self.get_month_object()
-            months = self.set_month()
-            # self.driver = self.months_temp_driver
-            for month in months:
-                month.click()
-                self.curr_year = month.text.split()[0]
-                self.curr_month = month.text.split()[1]
+                    _ = self.get_month_object()
+                    months = self.set_month()
+                    # self.driver = self.months_temp_driver
+                    for month in months:
+                        if month.text.__len__() == 0:
+                            continue
+                        month.click()
+                        self.curr_year = month.text.split()[0]
+                        self.curr_month = month.text.split()[1]
 
-                month_table = self.get_month_object()
-                prices_table = self.get_month_prices(month_table)
-                month_list = self.convert_prices_tables_to_list(prices_table)
-                print(month_list)
-                self.save_month(month_list)
+                        month_table = self.get_month_object()
+                        prices_table = self.get_month_prices(month_table)
+                        month_list = self.convert_prices_tables_to_list(prices_table)
+                        print(month_list)
+                        self.save_month(month_list)
 
+                    break
 
     def open_fare_finder(self):
         self.driver = webdriver.Chrome()
@@ -99,7 +111,9 @@ class RyanairAPI:
 
     def get_all_dests(self):
         all_dests = self.driver.find_elements_by_class_name("ff-list-item")  # ("farefinder-list") #ff-list-item
-        self.dest_temp_driver = self.driver
+        # self.dest_temp_driver = self.driver
+        self.dests_url = self.driver.current_url
+        # self.dest_temp_driver = copy.deepcopy(self.driver)
         return all_dests
         # for i in all_dests:
         #     print(i.text)
@@ -113,7 +127,9 @@ class RyanairAPI:
 
     def set_month(self):
         months = self.driver.find_elements_by_class_name("slide")
-        self.months_temp_driver = self.driver
+        self.months_url = self.driver.current_url
+        # self.months_temp_driver = self.driver
+        # self.months_temp_driver = copy.deepcopy(self.driver)
         return months
         # for i in months:
         #     i.click()
