@@ -34,13 +34,16 @@ class RyanairAPI:
         # print(month_list)
         all_destinations = self.get_all_dests()
         city_dests = [dest.text.split()[0] for dest in all_destinations]
+        print(city_dests)
         for city in city_dests:
+            print(f"------------------------------{city}---------------------------------------------------------")
             self.driver.get(self.dests_url)  #########################################
             # time.sleep(5)
             # self.driver = self.dest_temp_driver
             # self.driver = copy.deepcopy(self.dest_temp_driver)
             for dest in self.get_all_dests():
                 if city == dest.text.split()[0]:
+                    print(f"#######################################{city}####################################################")
                     self.curr_dest_city = dest.text.split()[0]  # ???????????????????????
                     self.curr_dest_country = dest.text.split()[1]
                     dest.click()
@@ -51,7 +54,10 @@ class RyanairAPI:
                     for month in months:
                         if month.text.__len__() == 0:
                             continue
-                        month.click()
+                        time.sleep(1.5)
+                        if self.city_count <= 4:
+                            month.click()
+                            self.city_count += 1
                         self.curr_year = month.text.split()[0]
                         self.curr_month = month.text.split()[1]
 
