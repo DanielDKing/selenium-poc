@@ -23,6 +23,9 @@ class RyanairAPI:
         self.city_count = 0
         self.year = {"Jun": [], "Jul": [], "Aug": [], "Sep": [], "Oct": []}
 
+    def gather_data_one_page(self):
+        pass
+
     def gather_data(self):
         self.open_fare_finder()
         # TODO choose city   get_all_dests()?
@@ -44,8 +47,18 @@ class RyanairAPI:
             for dest in self.get_all_dests():
                 if city == dest.text.split()[0]:
                     print(f"#######################################{city}####################################################")
-                    self.curr_dest_city = dest.text.split()[0]  # ???????????????????????
-                    self.curr_dest_country = dest.text.split()[1]
+                    # self.curr_dest_city = dest.text.split()[0]
+                    # self.curr_dest_country = dest.text.split()[1]
+                    if len(dest.text.split()) == 8:
+                        self.curr_dest_city = dest.text.split()[0]  # ???????????????????????
+                        self.curr_dest_country = dest.text.split()[1]
+                    elif "/" in dest.text.split():
+                        self.curr_dest_city = "".join(dest.text.split()[:3])  # ???????????????????????
+                        self.curr_dest_country = dest.text.split()[3]
+                    else:
+                        self.curr_dest_city = " ".join(dest.text.split()[:2])  # ???????????????????????
+                        self.curr_dest_country = dest.text.split()[2]
+
                     dest.click()
 
                     _ = self.get_month_object()
@@ -147,7 +160,7 @@ class RyanairAPI:
             for day in month_list.keys():
                 if month_list[day] != "0":
                     f.write(f"{day},{self.curr_month},{self.curr_year},{self.departure_city},{self.source_country},"
-                            f"{self.curr_dest_city},{self.curr_dest_country},{month_list[day]},\n")
+                            f"{self.curr_dest_city},{self.curr_dest_country},{month_list[day]},Ryanair,\n")
 
     # def get_month_object(self):
     #     time.sleep(5)
