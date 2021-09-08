@@ -2,14 +2,16 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
 import numpy as np
+import logging
 import copy
 
 class RyanairAPI:
-    def __init__(self, site_url="https://www.ryanair.com/gb/en/cheap-flights", departure_city="Tel Aviv"):
+    def __init__(self, site_url="https://www.ryanair.com/gb/en/cheap-flights", home_city="Tel Aviv"):
         self.url = site_url
         # self.driver = driver
         self.source_country = "Israel"
-        self.departure_city = departure_city
+        self.departure_city = home_city
+        self.home_city = home_city
         self.driver = ""
         self.temp_driver = ""
         self.dest_temp_driver = ""
@@ -23,11 +25,21 @@ class RyanairAPI:
         self.city_count = 0
         self.year = {"Jun": [], "Jul": [], "Aug": [], "Sep": [], "Oct": []}
 
-    def gather_data_one_page(self):
-        pass
-
     def gather_data(self):
         self.open_fare_finder()
+        next_page_available = True
+
+        while next_page_available:
+            self.gather_data_one_page()
+            try:
+                self.driver.get(self.dests_url)
+                next_button = self.driver.find_elements_by_class_name("nav-label")
+                next_button[1].click()
+            except:
+                next_page_available = False
+
+    def gather_data_one_page(self, flight_back=False):
+        # self.open_fare_finder()
         # TODO choose city   get_all_dests()?
         # self.get_all_dests()
         # month_table = self.get_month_object()
@@ -36,16 +48,17 @@ class RyanairAPI:
         # month_list = self.convert_prices_tables_to_list(prices_table)
         # print(month_list)
         all_destinations = self.get_all_dests()
-        city_dests = [dest.text.split()[0] for dest in all_destinations]
+        city_dests = [dest.text.split("\n")[0] for dest in all_destinations]
         print(city_dests)
         for city in city_dests:
             print(f"------------------------------{city}---------------------------------------------------------")
-            self.driver.get(self.dests_url)  #########################################
+            if not flight_back:
+                self.driver.get(self.dests_url)  #########################################
             # time.sleep(5)
             # self.driver = self.dest_temp_driver
             # self.driver = copy.deepcopy(self.dest_temp_driver)
             for dest in self.get_all_dests():
-                if city == dest.text.split()[0]:
+                if city == dest.text.split("\n")[0]:
                     print(f"#######################################{city}####################################################")
                     # self.curr_dest_city = dest.text.split()[0]
                     # self.curr_dest_country = dest.text.split()[1]
@@ -53,7 +66,7 @@ class RyanairAPI:
                         self.curr_dest_city = dest.text.split()[0]  # ???????????????????????
                         self.curr_dest_country = dest.text.split()[1]
                     elif "/" in dest.text.split():
-                        self.curr_dest_city = "".join(dest.text.split()[:3])  # ???????????????????????
+                        self.curr_dest_city = " ".join(dest.text.split()[:3])  # ???????????????????????
                         self.curr_dest_country = dest.text.split()[3]
                     else:
                         self.curr_dest_city = " ".join(dest.text.split()[:2])  # ???????????????????????
@@ -68,21 +81,46 @@ class RyanairAPI:
                         if month.text.__len__() == 0:
                             continue
                         time.sleep(1.5)
-                        if self.city_count <= 4:
-                            month.click()
-                            self.city_count += 1
-                        self.curr_year = month.text.split()[0]
-                        self.curr_month = month.text.split()[1]
+                        try:
+                            if self.city_count <= 4:
+                                month.click()
+                                self.city_count += 1
+                            self.curr_year = month.text.split()[0]
+                            self.curr_month = month.text.split()[1]
 
-                        month_table = self.get_month_object()
-                        prices_table = self.get_month_prices(month_table)
-                        month_list = self.convert_prices_tables_to_list(prices_table)
-                        print(month_list)
-                        self.save_month(month_list)
+                            month_table = self.get_month_object()
+                            prices_table = self.get_month_prices(month_table)
+                            month_list = self.convert_prices_tables_to_list(prices_table)
+                            print(month_list)
+                            self.save_month(month_list)
+                        except Exception as e:
+                            logging.error("Failed to click on next month", e)
 
                     break
 
-    def open_fare_finder(self):
+    def get_flights_back(self):
+        departure_cities = self.get_destination_cities()
+        for city in departure_cities:
+            self.open_fare_finder(departure_city=city[0])
+            self.departure_city = city[0]
+            self.source_country = city[1]
+            self.gather_data_one_page(flight_back=True)
+            self.driver.close()
+
+
+
+    def get_destination_cities(self):
+        destination_cities = set()
+
+        with open(".\\data\\flights.txt", "r") as file:
+            data = file.readlines()
+            for i in data[1:]:
+                destination_cities.add((i.split(",")[5], i.split(",")[6]))
+
+        print(destination_cities - {("Tel Aviv", "Israel")})
+        return destination_cities - {("Tel Aviv", "Israel")}
+
+    def open_fare_finder(self, departure_city=None):
         self.driver = webdriver.Chrome()
         self.driver.get(self.url)
         webdriver.ActionChains(self.driver).send_keys(Keys.ESCAPE).perform()
@@ -95,12 +133,27 @@ class RyanairAPI:
         for i in range(10):
             departure.send_keys(Keys.BACK_SPACE, Keys.BACK_SPACE, Keys.BACK_SPACE, Keys.BACK_SPACE, Keys.BACK_SPACE,
                                 Keys.BACK_SPACE, Keys.BACK_SPACE)
-        departure.send_keys(self.departure_city)
-        core[4].click()
-        time.sleep(5)
-        submit = self.driver.find_elements_by_tag_name("button")
-        submit[0].click()
-        time.sleep(5)
+        if not departure_city:
+            departure.send_keys(self.departure_city)
+            core[4].click()
+            time.sleep(5)
+            submit = self.driver.find_elements_by_tag_name("button")
+            submit[0].click()
+            time.sleep(5)
+        else:
+            departure.send_keys(departure_city)
+            core[4].click()
+            time.sleep(3)
+            # Delete destination text(Anywhare)
+            for i in range(15):
+                core[4].send_keys(Keys.BACK_SPACE)
+
+            core[4].send_keys(self.home_city)
+            time.sleep(5)
+            submit = self.driver.find_elements_by_tag_name("button")
+            core[1].click()
+            submit[0].click()
+            time.sleep(5)
 
     def get_month_object(self):
         time.sleep(5)
